@@ -36,6 +36,7 @@ def _bitaps(address,
     latest = now + time_window
     for transaction in transactions:
         timestamp = transaction[0]
+        txid = transaction[1]
         status = transaction[4]
         tx_satoshis = transaction[7]
         # Transactions come to us in latest first format. As soon as we
@@ -46,7 +47,7 @@ def _bitaps(address,
             return False
         if tx_satoshis == satoshis:
             if status != 'invalid':
-                return True
+                return txid
     # If nothing matches...
     return False
 
@@ -55,7 +56,7 @@ def payment(address,
             satoshis,
             unique,
             satoshi_security=10000,
-            time_window=300):
+            time_window=120):
     """
     Accepts a payment.
 
@@ -95,8 +96,8 @@ def payment(address,
     # unique and thus harder to predict.
     satoshis = satoshis + satoshi_padding
     bitcoinacceptor_payment = namedtuple('bitcoinacceptor_payment',
-                                         ['satoshis'
-                                          'status'])
+                                         ['satoshis',
+                                          'txid'])
     bitcoinacceptor_payment.satoshis = satoshis
-    bitcoinacceptor_payment.status = _bitaps(address, satoshis, time_window)
+    bitcoinacceptor_payment.txid = _bitaps(address, satoshis, time_window)
     return bitcoinacceptor_payment

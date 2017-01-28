@@ -2,16 +2,16 @@
 
 from setuptools import setup
 
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 
 DOWNLOAD_URL = 'https://github.com/teran-mckinney/bitcoinacceptor-python/tarball/{}'
 
 setup(
-    name='coinfee',
+    name='bitcoinacceptor',
     version=VERSION,
     author='Teran McKinney',
     author_email='sega01@go-beyond.org',
-    description='Library for coinfee.net, a Bitcoin payment processor',
+    description='Accept Bitcoin without spending Bitcoin',
     keywords=['bitcoin'],
     license='Unlicense',
     url='https://github.com/teran-mckinney/bitcoinacceptor-python/',

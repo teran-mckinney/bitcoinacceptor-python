@@ -30,7 +30,7 @@ def test_okay(mock_urlopen, mock_time):
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
-    assert payment.status is True
+    assert payment.txid == 'txid'
 
 
 @patch('bitcoinacceptor.time')
@@ -44,7 +44,7 @@ def test_too_late(mock_urlopen, mock_time):
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                       time_window=30)
-    assert payment.status is False
+    assert payment.txid is False
 
 
 @patch('bitcoinacceptor.time')
@@ -58,7 +58,7 @@ def test_too_early(mock_urlopen, mock_time):
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                       time_window=30)
-    assert payment.status is False
+    assert payment.txid is False
 
 
 @patch('bitcoinacceptor.time')
@@ -71,4 +71,4 @@ def test_status_invalid(mock_urlopen, mock_time):
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
-    assert payment.status is False
+    assert payment.txid is False

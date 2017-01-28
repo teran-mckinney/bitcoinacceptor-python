@@ -12,14 +12,24 @@
 import bitcoinacceptor
 from time import sleep
 
+# This is only important for roughly time_window / 2.
+# Prevents double buys.
+transactions = []
+
+hath_spoken = False
 while True:
     address = '16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq'
     payment = bitcoinacceptor.payment(address=address, satoshis=10000, unique='random_uuid')
-    if payment.status is False:
-        print('Send {} Satoshis to {}'.format(payment.satoshis, address))
+    if payment.txid is False:
+        if hath_spoken is False:
+            print('Send {} Satoshis to {}'.format(payment.satoshis, address))
+            hath_spoken = True
     else:
-        print("Here's the product.")
-        break
+        if payment.txid not in transactions:
+            print(payment.txid)
+            print("Here's the product.")
+            transactions.append(payment.txid)
+            break
     sleep(2)
 ```
 
@@ -40,6 +50,10 @@ There's other attacks where someone can flood your account with Bitcoins and blo
 You probably want to only use this with base Satoshis of 10,000 or more.
 
 This is meant for 0 confirmation transactions at a moderate to low rate. For the impatient and not endlessly successful.
+
+Thinking about this more, an attacker can hit your endpoint enough times to build a table of all possible prices. The attacker can then wait for payments and strike with pre-computed payloads. The first request to reach the endpoint wins, more or less. So if you are giving a digital product that you don't care much about, it's probably fine. If not, the user may lose out.
+
+You'll want to log txids for time_window /2, roughly. If the txid has been used, don't do it again. That prevents the multiple buys per transaction attack.
 
 # Licence
 
