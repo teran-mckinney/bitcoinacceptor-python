@@ -13,25 +13,6 @@ def test_security_code():
 
 
 @patch('bitcoinacceptor.time')
-def test_earlier_satoshis_match_check(mock_time):
-    """
-    1DzgzQUDwtAwDo1yYn97SEvWpe86hXeFHQ is a virgin address.
-    """
-    now = int(time())
-    earlier = now - 100
-    satoshis = 12345
-    mock_time.return_value = now
-    payment = bitcoinacceptor.payment('1DzgzQUDwtAwDo1yYn97SEvWpe86hXeFHQ',
-                                      satoshis,
-                                      'unique')
-    mock_time.return_value = earlier
-    earlier_payment = bitcoinacceptor.payment('1DzgzQUDwtAwDo1yYn97SEvWpe86hXeFHQ',
-                                              satoshis,
-                                              'unique')
-    assert earlier_payment.satoshis == payment.earlier_satoshis
-
-
-@patch('bitcoinacceptor.time')
 @patch('bitcoinacceptor.urlopen')
 def test_determinism(mock_urlopen, mock_time):
     test_data = '[[1485982756, "txid", "", "received", "confirmed", 0, 0, 18183]]'
@@ -41,7 +22,6 @@ def test_determinism(mock_urlopen, mock_time):
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
-    assert payment.satoshis == 0
     assert payment.txid == 'txid'
 
 
@@ -55,8 +35,24 @@ def test_determinism_previous_payment(mock_urlopen, mock_time):
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
-    assert payment.satoshis == 0
     assert payment.txid == 'txid'
+
+
+@patch('bitcoinacceptor.time')
+@patch('bitcoinacceptor.urlopen')
+def test_newer_txid_preference(mock_urlopen, mock_time):
+    """
+    Test preference for first entry to second.
+    """
+    test = '[[1485982756, "newtxid", "", "received", "confirmed", 0, 0, 17728], ' \
+           '[1485982756, "oldtxid", "", "received", "confirmed", 0, 0, 17728]]'
+    mock_urlopen.return_value.read.return_value = test
+    mock_time.return_value = 1485982756
+    satoshis = 12345
+    payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                      satoshis,
+                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc')
+    assert payment.txid == 'newtxid'
 
 
 @patch('bitcoinacceptor.time')
@@ -64,28 +60,13 @@ def test_determinism_previous_payment(mock_urlopen, mock_time):
 def test_too_late(mock_urlopen, mock_time):
     test_data = '[[1485982787, "txid", "", "received", "confirmed", 0, 0, 18183]]'
     mock_urlopen.return_value.read.return_value = test_data
-    mock_time.return_value = 1485982756
+    mock_time.return_value = 2485982787
     satoshis = 12345
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
-                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc',
-                                      time_window=30)
-    assert payment.satoshis == 18183
-    assert payment.txid is False
-
-
-@patch('bitcoinacceptor.time')
-@patch('bitcoinacceptor.urlopen')
-def test_too_early(mock_urlopen, mock_time):
-    test_data = '[[1485982725, "txid", "", "received", "confirmed", 0, 0, 18183]]'
-    mock_urlopen.return_value.read.return_value = test_data
-    mock_time.return_value = 1485982756
-    satoshis = 12345
-    payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
-                                      satoshis,
-                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc',
-                                      time_window=30)
-    assert payment.satoshis == 18183
+                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc')
+    print(payment.satoshis)
+    assert payment.satoshis == 16420
     assert payment.txid is False
 
 
@@ -112,8 +93,26 @@ def test_real_payment(mock_time):
     payment = bitcoinacceptor.payment('13tsssFsomxTqJjgz3NQAZvLRuW2LTDmcP',
                                       10000,
                                       'unique')
-    print(payment.satoshis)
-    print(payment.txid)
-    assert payment.satoshis == 0
+    assert payment.satoshis == 15512
     txid = 'a12039091ad74f30fda38520574c87c76c5a615224b2ee0db56d4fb62794e5fa'
     assert payment.txid == txid
+
+
+def test_real_false_payment():
+    """
+    Real test for payment that never happened.
+    """
+    payment = bitcoinacceptor.payment('13tsssFsomxTqJjgz3NQAZvLRuW2LTDmcP',
+                                      10000,
+                                      'no payment')
+    assert payment.txid == False
+
+
+def test_real_old_payment():
+    """
+    Real test for payment that's just too old.
+    """
+    payment = bitcoinacceptor.payment('13tsssFsomxTqJjgz3NQAZvLRuW2LTDmcP',
+                                      10000,
+                                      'unique')
+    assert payment.txid == False

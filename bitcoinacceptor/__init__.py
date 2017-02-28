@@ -9,7 +9,12 @@ Released into the public domain.
 from collections import namedtuple
 from hashlib import md5
 from time import time
-from urllib2 import urlopen, HTTPError
+
+# Python 2 backwards compatibility.
+try:
+    from urllib.request import urlopen, HTTPError
+except ImportError:
+    from urllib2 import urlopen, HTTPError
 
 import yaml
 
@@ -19,8 +24,8 @@ TIMEOUT = 15
 
 def _bitaps(address,
             satoshis,
-            earlier_satoshis,
-            time_window):
+            unique,
+            satoshi_security):
     """
     Trying to make this modular so we can use multiple APIs if needed, but
     in general bitaps seems to be pretty reliable.
@@ -28,8 +33,6 @@ def _bitaps(address,
     I think this returns 100 items at most, so throughput is largely dictated
     by that and your poll rate.
     """
-    # Determine the current time first, in case the API query is slow.
-    now = int(time())
     url = 'https://bitaps.com/api/address/transactions/{}/0/received/all'
     url = url.format(address)
     # bitaps returns 404 on addresses with no transactions. urlopen
@@ -40,27 +43,40 @@ def _bitaps(address,
         transactions = yaml.safe_load(http_return.read())
     except HTTPError:
         return False
-    earliest = now - time_window
-    latest = now + time_window
+    now = int(time())
+    earliest = now - 3600
+    # // in Python 3 is like / in Python 2.
+    period_now = now // 100
     for transaction in transactions:
         timestamp = transaction[0]
         txid = transaction[1]
         status = transaction[4]
         # tx as in transaction, not as in transmitted.
         tx_satoshis = transaction[7]
-        # Transactions come to us in latest first format. As soon as we
-        # are out of the time range, we bail out.
-        if timestamp > latest:
-            return False
+        # Transactions come to us in latest first format.
+        # Bail out if we go back more than a day.
         if timestamp < earliest:
-            return False
+            break
         if status != 'invalid':
-            if tx_satoshis == satoshis:
-                    return txid
-            if tx_satoshis == earlier_satoshis:
-                    return txid
+            # Try an hour's worth of possible satoshis for the hash.
+            # The code using this needs to be tracking txid state anyway.
+            # Given the sorting, this should always work in our favor.
+            # range returns 0 - 35 with range(36).
+            # I wonder how slow this will be.
+            # Would use xrange but need range() for Python 3 compatibility.
+            for possible_satoshis in range(36):
+                period = period_now - possible_satoshis
+                paid_satoshis = _satoshi_security_code(unique,
+                                                       period,
+                                                       satoshi_security)
+                paid_satoshis += satoshis
+                if tx_satoshis == paid_satoshis:
+                    return (txid, paid_satoshis)
     # If nothing matches...
-    return False
+    now_satoshis = satoshis + _satoshi_security_code(unique,
+                                                     period_now,
+                                                     satoshi_security)
+    return (False, now_satoshis)
 
 
 def _satoshi_security_code(unique,
@@ -78,8 +94,13 @@ def _satoshi_security_code(unique,
     # Make centiepoch a string so we can append it to unique, which is
     # a string.
     centiepoch = str(centiepoch)
+    # Python 3, 2 support.
+    try:
+        hashable = bytes(unique + centiepoch, 'utf-8')
+    except:
+        hashable = unique + centiepoch
     # Get our base MD5 sum, in integer format.
-    security_code = int(md5(unique + centiepoch).hexdigest(), 16)
+    security_code = int(md5(hashable).hexdigest(), 16)
     # Modulo down to satoshi_security levels.
     security_code = security_code % satoshi_security
     # This gets rid of the L on the end, if any.
@@ -90,10 +111,11 @@ def _satoshi_security_code(unique,
 def payment(address,
             satoshis,
             unique,
-            satoshi_security=10000,
-            time_window=120):
+            satoshi_security=10000):
     """
     Accepts a payment.
+
+    These comments may be very inaccurate and out of date.
 
     unique is something that you associate with the particular payment.
     Hopefully, a UUID. If there is any risk of the unique being captured by
@@ -114,44 +136,24 @@ def payment(address,
     Sniping would be defined as making a request to receive the good/service
     after the user has made payment, but before the user has received it.
 
-    time_window is a window in seconds, plus or minus, that we allow
-    transactions from. This, combined with satoshi_security, help improve
-    potential throughput. Except, the lower the number the more throughput we
-    have before we start having collisions. Clock sync is important here! Not
-    all API clocks are in sync, either!
-
-    time_window greater than 200 won't really do anything beneficial.
-
     Returns:
     satoshis which is the total amount that needs to be paid.
     status True/False, if payment has been finished.
     earlier_satoshis which should not be used, except for testing.
 
-    If you get a True, move on and do something. That status
-    doesn't last long. Don't rely on this for state tracking.
+    If you get a txid, save it for at least 86400 seconds. And compare what
+    this returns to your database to be certain.
+
+    Theoretical maximum payment window is 86400 seconds. But if other users
+    are transacting in that window, it's lower.
     """
     bitcoinacceptor_payment = namedtuple('bitcoinacceptor_payment',
                                          ['satoshis',
-                                          'earlier_satoshis',
                                           'txid'])
-    # Deterministically generate our padding.
-    now = int(time()) / 100
-    earlier = now - 1
-    now_satoshis = satoshis + _satoshi_security_code(unique,
-                                                     now,
-                                                     satoshi_security)
-    earlier_satoshis = satoshis + _satoshi_security_code(unique,
-                                                         earlier,
-                                                         satoshi_security)
-    bitcoinacceptor_payment.txid = _bitaps(address,
-                                           now_satoshis,
-                                           earlier_satoshis,
-                                           time_window)
-    if bitcoinacceptor_payment.txid is False:
-        bitcoinacceptor_payment.earlier_satoshis = earlier_satoshis
-        bitcoinacceptor_payment.satoshis = now_satoshis
-    else:
-        # Try to help prevent plausible double payment cases.
-        bitcoinacceptor_payment.earlier_satoshis = 0
-        bitcoinacceptor_payment.satoshis = 0
+    txid, satoshis = _bitaps(address,
+                             satoshis,
+                             unique,
+                             satoshi_security)
+    bitcoinacceptor_payment.txid = txid
+    bitcoinacceptor_payment.satoshis = satoshis
     return bitcoinacceptor_payment
