@@ -2,16 +2,17 @@
 
 from setuptools import setup
 
-VERSION = '0.0.4'
+VERSION = '0.1.0'
 
 DOWNLOAD_URL = 'https://github.com/teran-mckinney/bitcoinacceptor-python/tarball/{}'
 
 setup(
+    python_requires='>=3.3',
     name='bitcoinacceptor',
     version=VERSION,
     author='Teran McKinney',
     author_email='sega01@go-beyond.org',
-    description='Accept Bitcoin without spending Bitcoin',
+    description='Accept Bitcoin without spending as much Bitcoin',
     keywords=['bitcoin'],
     license='Unlicense',
     url='https://github.com/teran-mckinney/bitcoinacceptor-python/',
@@ -21,6 +22,6 @@ setup(
         'flake8'
     ],
     install_requires=[
-        'pyyaml'
-    ]
+        'bit'
+    ],
 )

@@ -59,6 +59,12 @@ Thinking about this more, an attacker can hit your endpoint enough times to buil
 
 You'll want to log txids for time_window /2, roughly. If the txid has been used, don't do it again. That prevents the multiple buys per transaction attack.
 
+# UPDATE
+
+0.1.0 is way different. It's Python 3 only. Uses bit. Default satoshi_security is 1,000 instead of 10,000.
+
+Also, it uses confirmations instead of time. So someone can spam you with TXs that will never confirm and get free stuff.
+
 # Licence
 
 [Unlicense/Public domain](LICENSE.txt)
