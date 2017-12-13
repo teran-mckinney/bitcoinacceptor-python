@@ -123,7 +123,8 @@ def _satoshi_security_code(unique,
 
 def payment(address,
             satoshis,
-            unique):
+            unique,
+            currency='btc'):
     """
     Accepts a payment.
 
@@ -164,7 +165,8 @@ def payment(address,
                                           'txid'])
     txid, satoshis = _unspents(address,
                                satoshis,
-                               unique)
+                               unique,
+                               currency)
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
     return bitcoinacceptor_payment
@@ -200,4 +202,5 @@ def fiat_payment(address,
 
     return payment(address,
                    satoshi_list,
-                   unique)
+                   unique,
+                   currency)
