@@ -3,49 +3,99 @@ bitcoinacceptor library
 
 Helps you accept Bitcoins without paying to accept Bitcoins.
 
+Or Bitcoin Cash!
+
 Released into the public domain.
 """
 
 from collections import namedtuple
 from hashlib import md5
+from time import strftime, gmtime, time
 
 import bit
+import bitcash
+import requests
 
 
 MAX_CONFIRMATIONS = 6
+FIAT_TICKER = 'USD'
+# Ideally, this should be dynamic and be based on economy TX fee
+# recommendations per input.
+SATOSHI_FLOOR = 10000
+
+
+# FIXME: This won't work when the price is 100x. Need to switch to floating
+# point then.
+def satoshis_per_cent(currency='btc'):
+    """
+    Returns "new" and "old" cents.
+    This is designed so you don't get crossover gaps with lost payments.
+    """
+    def _bitcoinaverage_time_offset(offset=0):
+        return strftime('%Y-%m-%d %H:00:00', gmtime(time() - offset))
+
+    ticker = currency.upper()
+
+    # No try/except, we want to break badly if this breaks.
+    url = 'https://apiv2.bitcoinaverage.com/indices/global/history/{}{}'\
+          '?period=daily&format=json'.format(ticker, FIAT_TICKER)
+    price_index = requests.get(url, timeout=20).json()
+    first_price = None
+    # This is a list so we have to iterate.
+    for price_dict in price_index:
+        if price_dict['time'] == _bitcoinaverage_time_offset(3600):
+            first_price = price_dict['average']
+        elif price_dict['time'] == _bitcoinaverage_time_offset(7200):
+            second_price = price_dict['average']
+            if first_price is not None:
+                break
+            # else:
+            #    debug('Got second price before first price???')
+
+    def _convert_to_satoshi_per_cent(btcusd):
+        return int((1 / btcusd * 100000000 / 100))
+
+    satoshis_per_cent_list = [_convert_to_satoshi_per_cent(first_price),
+                              _convert_to_satoshi_per_cent(second_price)]
+
+    return satoshis_per_cent_list
 
 
 def _unspents(address,
-              satoshis,
+              satoshis_to_try,
               unique,
-              satoshi_security):
+              currency='btc'):
     """
-    Moved from bitaps to bit's unspents.
     Expects a sorted list of unspents.
     """
-    unspents = bit.network.NetworkAPI.get_unspent(address)
+    if currency == 'btc':
+        our_bit = bit
+    elif currency == 'bch':
+        our_bit = bitcash
+    else:
+        raise ValueError('currency must be one of: btc, bch')
+
+    if isinstance(satoshis_to_try, int):
+        satoshis_to_try = [satoshis_to_try]
+
+    unspents = our_bit.network.NetworkAPI.get_unspent(address)
     for unspent in unspents:
         # Bail out if we go back more than 6.
         if unspent.confirmations > MAX_CONFIRMATIONS:
             break
-        # range returns 0 - 6 with range(7).
-        for attempt in range(7):
-            paid_satoshis = _satoshi_security_code(unique,
-                                                   attempt,
-                                                   satoshi_security)
+        for satoshis in satoshis_to_try:
+            paid_satoshis = _satoshi_security_code(unique)
             paid_satoshis += satoshis
             if unspent.amount == paid_satoshis:
                 return (unspent.txid, unspent.amount)
     # If nothing matches...
-    now_satoshis = satoshis + _satoshi_security_code(unique,
-                                                     0,
-                                                     satoshi_security)
+    now_satoshis = satoshis_to_try[0] + _satoshi_security_code(unique)
     return (False, now_satoshis)
 
 
 def _satoshi_security_code(unique,
-                           attempt,
-                           satoshi_security):
+                           attempt=0,
+                           satoshi_security=1000):
     """
     Returns the "Satoshi security code" given the circumstances.
     We use MD5 because it's pretty fast. We strip off so many bits
@@ -57,6 +107,7 @@ def _satoshi_security_code(unique,
     Our possible returns are 0 - satoshi_security. Pretty narrow
     range.
     """
+
     # Make attempt a string so we can append it to unique, which is
     # a string.
     attempt = str(attempt)
@@ -72,8 +123,7 @@ def _satoshi_security_code(unique,
 
 def payment(address,
             satoshis,
-            unique,
-            satoshi_security=1000):
+            unique):
     """
     Accepts a payment.
 
@@ -89,8 +139,8 @@ def payment(address,
     satoshi_security will tend to give you 50% of its value in extra payment.
     Perhaps, users may also not want to pay that much. It's a number, 0-X, of
     padding satoshis that help prevent cases where a malicious user may detect
-    a payment, then attempt to steal what was paid for before the good user gets
-    it.
+    a payment, then attempt to steal what was paid for before the good user
+    gets it.
 
     We have a time modifier for the hash function so that malcious users
     should not as easier be able to precompute uuid to satoshi tables before
@@ -114,8 +164,40 @@ def payment(address,
                                           'txid'])
     txid, satoshis = _unspents(address,
                                satoshis,
-                               unique,
-                               satoshi_security)
+                               unique)
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
     return bitcoinacceptor_payment
+
+
+def fiat_payment(address,
+                 cents,
+                 unique,
+                 currency='btc'):
+    """
+    Tries to accept a payment denominated in US cents.
+    """
+    first_cents, second_cents = satoshis_per_cent(currency)
+    first_satoshis = first_cents * cents
+    second_satoshis = second_cents * cents
+
+    # Minimum accepted payment on the network is roughly 10,000
+    # Some clients won't even let you send that little.
+    # If we optimize this to skip this from happening twice
+    # there is a risk of skipping an old/crossover payment.
+    # This is because the price might drop suddenly, floor
+    # doesn't apply, then we skip the older, higher price
+    # which the client paid at.
+    if first_satoshis < SATOSHI_FLOOR:
+        first_satoshis = SATOSHI_FLOOR
+    if second_satoshis < SATOSHI_FLOOR:
+        second_satoshis = SATOSHI_FLOOR
+
+    if first_satoshis == second_satoshis:
+        satoshi_list = [first_satoshis]
+    else:
+        satoshi_list = [first_satoshis, second_satoshis]
+
+    return payment(address,
+                   satoshi_list,
+                   unique)

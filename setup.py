@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 
 DOWNLOAD_URL = 'https://github.com/teran-mckinney/bitcoinacceptor-python/tarball/{}'
 
@@ -22,6 +22,8 @@ setup(
         'flake8'
     ],
     install_requires=[
-        'bit'
+        'bit',
+        'bitcash',
+        'requests'
     ],
 )
