@@ -16,6 +16,39 @@ def test_security_code():
     assert code == 991
 
 
+def test_fiat_per_coin():
+    first_price_btc, _ = bitcoinacceptor.fiat_per_coin('btc')
+    first_price_bch, _ = bitcoinacceptor.fiat_per_coin('bch')
+    assert first_price_btc > first_price_bch
+
+
+def test_satoshis_per_cent():
+    first, second = bitcoinacceptor.satoshis_per_cent('btc', 10000, 5000)
+    assert first == 100
+    assert second == 200
+    first, second = bitcoinacceptor.satoshis_per_cent('bch', 100000, 50000)
+    assert first == 10
+    assert second == 20
+
+
+def test_fiat_payment_basic():
+    cents = 100
+    payment = bitcoinacceptor.fiat_payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                           cents,
+                                           'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                           'btc',
+                                            10000,
+                                            10001)
+    assert payment.satoshis == 10721
+    payment = bitcoinacceptor.fiat_payment('bitcoincash:qqwmyjjplsqwltkcgyeagqpjspaaksz3qggnfug7gy',
+                                           cents,
+                                           'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                           'bch',
+                                            1000,
+                                            1001)
+    assert payment.satoshis == 100721
+
+
 @patch('bitcoinacceptor.bit.network.NetworkAPI.get_unspent')
 def test_determinism(mock_get_unspent):
     test_data = [Unspent(amount=10721, confirmations=0, script='script', txid='txid1', txindex=1),

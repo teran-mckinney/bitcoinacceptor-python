@@ -8,6 +8,7 @@ Or Bitcoin Cash!
 Released into the public domain.
 """
 
+import logging
 from collections import namedtuple
 from hashlib import md5
 from time import strftime, gmtime, time
@@ -24,12 +25,14 @@ FIAT_TICKER = 'USD'
 SATOSHI_FLOOR = 10000
 
 
-# FIXME: This won't work when the price is 100x. Need to switch to floating
-# point then.
-def satoshis_per_cent(currency='btc'):
+def fiat_per_coin(currency):
     """
-    Returns "new" and "old" cents.
-    This is designed so you don't get crossover gaps with lost payments.
+    Returns the standard ticker rate of fiat per coin
+    rate. For example, 10,000 if Bitcoin to USD, $1,200
+    if Bitcoin Cash to USD. (Approximation at the time
+    of this comment)
+
+    'currency' is the cryptocurrency, not the fiat.
     """
     def _bitcoinaverage_time_offset(offset=0):
         return strftime('%Y-%m-%d %H:00:00', gmtime(time() - offset))
@@ -39,8 +42,12 @@ def satoshis_per_cent(currency='btc'):
     # No try/except, we want to break badly if this breaks.
     url = 'https://apiv2.bitcoinaverage.com/indices/global/history/{}{}'\
           '?period=daily&format=json'.format(ticker, FIAT_TICKER)
-    price_index = requests.get(url, timeout=20).json()
+    request = requests.get(url, timeout=20)
+    # Throw an error is something is amiss.
+    request.raise_for_status()
+    price_index = request.json()
     first_price = None
+    second_price = None
     # This is a list so we have to iterate.
     for price_dict in price_index:
         if price_dict['time'] == _bitcoinaverage_time_offset(3600):
@@ -49,8 +56,24 @@ def satoshis_per_cent(currency='btc'):
             second_price = price_dict['average']
             if first_price is not None:
                 break
-            # else:
-            #    debug('Got second price before first price???')
+            else:
+                logging.debug('Got second price before first price?')
+    if first_price is None or second_price is None:
+        raise Exception('Unable to extract price at time.')
+    return first_price, second_price
+
+
+# FIXME: This won't work when the price is 100x. Need to switch to floating
+# point then.
+def satoshis_per_cent(currency='btc',
+                      first_price=None,
+                      second_price=None):
+    """
+    Returns "new" and "old" cents.
+    This is designed so you don't get crossover gaps with lost payments.
+    """
+    if first_price is None and second_price is None:
+        first_price, second_price = fiat_per_coin(currency)
 
     def _convert_to_satoshi_per_cent(btcusd):
         return int((1 / btcusd * 100000000 / 100))
@@ -175,11 +198,17 @@ def payment(address,
 def fiat_payment(address,
                  cents,
                  unique,
-                 currency='btc'):
+                 currency='btc',
+                 first_price=None,
+                 second_price=None):
     """
+    Should have been named fiat_denominated_payment()
+
     Tries to accept a payment denominated in US cents.
     """
-    first_cents, second_cents = satoshis_per_cent(currency)
+    first_cents, second_cents = satoshis_per_cent(currency,
+                                                  first_price,
+                                                  second_price)
     first_satoshis = first_cents * cents
     second_satoshis = second_cents * cents
 
