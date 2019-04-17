@@ -33,7 +33,16 @@ def fiat_per_coin(currency):
     of this comment)
 
     'currency' is the cryptocurrency, not the fiat.
+
+    Will eventually just return one output. This is
+    being tweaked.
     """
+    # Waiting for an update to bit to do it for Bitcoin as well.
+    if currency == 'bch':
+        BCH = bitcash.network.rates.BCH
+        price = float(bitcash.network.rates.satoshi_to_currency(BCH, 'usd'))
+        return price, price
+
     def _bitcoinaverage_time_offset(offset=0):
         return strftime('%Y-%m-%d %H:00:00', gmtime(time() - offset))
 
