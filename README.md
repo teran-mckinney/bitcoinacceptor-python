@@ -1,10 +1,12 @@
+## bitcoinacceptor: Accept Bitcoin, BitcoinCash, BitcoinSV
+
 # Installation
 
-* `pip install bitcoinacceptor`
+* `pip3 install bitcoinacceptor`
 
 # Testing
 
-* `nosetests`
+* `nosetests -vx`
 
 # Usage
 

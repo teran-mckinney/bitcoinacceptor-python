@@ -8,14 +8,12 @@ Or Bitcoin Cash!
 Released into the public domain.
 """
 
-import logging
 from collections import namedtuple
 from hashlib import md5
-from time import strftime, gmtime, time
 
 import bit
 import bitcash
-import requests
+import bitsv
 
 
 MAX_CONFIRMATIONS = 6
@@ -23,6 +21,15 @@ FIAT_TICKER = 'USD'
 # Ideally, this should be dynamic and be based on economy TX fee
 # recommendations per input.
 SATOSHI_FLOOR = 10000
+
+VALID_CURRENCIES = ('btc', 'bch', 'bsv')
+
+
+def validate_currency(currency):
+    msg = 'currency must be one of: {}'.format(VALID_CURRENCIES)
+    if currency not in VALID_CURRENCIES:
+        raise ValueError(msg)
+    return True
 
 
 def fiat_per_coin(currency):
@@ -37,39 +44,19 @@ def fiat_per_coin(currency):
     Will eventually just return one output. This is
     being tweaked.
     """
-    # Waiting for an update to bit to do it for Bitcoin as well.
+    validate_currency(currency)
     if currency == 'bch':
         BCH = bitcash.network.rates.BCH
         price = float(bitcash.network.rates.satoshi_to_currency(BCH, 'usd'))
         return price, price
-
-    def _bitcoinaverage_time_offset(offset=0):
-        return strftime('%Y-%m-%d %H:00:00', gmtime(time() - offset))
-
-    ticker = currency.upper()
-
-    # No try/except, we want to break badly if this breaks.
-    url = 'https://apiv2.bitcoinaverage.com/indices/global/history/{}{}'\
-          '?period=daily&format=json'.format(ticker, FIAT_TICKER)
-    request = requests.get(url, timeout=20)
-    # Throw an error is something is amiss.
-    request.raise_for_status()
-    price_index = request.json()
-    first_price = None
-    second_price = None
-    # This is a list so we have to iterate.
-    for price_dict in price_index:
-        if price_dict['time'] == _bitcoinaverage_time_offset(3600):
-            first_price = price_dict['average']
-        elif price_dict['time'] == _bitcoinaverage_time_offset(7200):
-            second_price = price_dict['average']
-            if first_price is not None:
-                break
-            else:
-                logging.debug('Got second price before first price?')
-    if first_price is None or second_price is None:
-        raise Exception('Unable to extract price at time.')
-    return first_price, second_price
+    elif currency == 'bsv':
+        BSV = bitsv.network.rates.BSV
+        price = float(bitsv.network.rates.satoshi_to_currency(BSV, 'usd'))
+        return price, price
+    elif currency == 'btc':
+        BTC = bit.network.rates.BTC
+        price = float(bit.network.rates.satoshi_to_currency(BTC, 'usd'))
+        return price, price
 
 
 # FIXME: This won't work when the price is 100x. Need to switch to floating
@@ -100,12 +87,14 @@ def _unspents(address,
     """
     Expects a sorted list of unspents.
     """
+    validate_currency(currency)
+
     if currency == 'btc':
         our_bit = bit
     elif currency == 'bch':
         our_bit = bitcash
-    else:
-        raise ValueError('currency must be one of: btc, bch')
+    elif currency == 'bsv':
+        our_bit = bitsv
 
     if isinstance(satoshis_to_try, int):
         satoshis_to_try = [satoshis_to_try]
@@ -192,6 +181,7 @@ def payment(address,
     Theoretical maximum payment window is 86400 seconds. But if other users
     are transacting in that window, it's lower.
     """
+    validate_currency(currency)
     bitcoinacceptor_payment = namedtuple('bitcoinacceptor_payment',
                                          ['satoshis',
                                           'txid'])
@@ -215,6 +205,7 @@ def fiat_payment(address,
 
     Tries to accept a payment denominated in US cents.
     """
+    validate_currency(currency)
     first_cents, second_cents = satoshis_per_cent(currency,
                                                   first_price,
                                                   second_price)

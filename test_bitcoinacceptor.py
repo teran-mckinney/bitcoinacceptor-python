@@ -1,8 +1,18 @@
 from mock import patch
-from time import time
 
 import bitcoinacceptor
+import pytest
 from bit.network.meta import Unspent
+
+# These are a bit of a mess, not consistent through all currencies. Should be redone.
+
+
+def test_validate_currency():
+    assert bitcoinacceptor.validate_currency('btc') is True
+    assert bitcoinacceptor.validate_currency('bch') is True
+    assert bitcoinacceptor.validate_currency('bsv') is True
+    with pytest.raises(ValueError):
+        bitcoinacceptor.validate_currency('eth')
 
 
 def test_security_code():
@@ -19,7 +29,9 @@ def test_security_code():
 def test_fiat_per_coin():
     first_price_btc, _ = bitcoinacceptor.fiat_per_coin('btc')
     first_price_bch, _ = bitcoinacceptor.fiat_per_coin('bch')
+    first_price_bsv, _ = bitcoinacceptor.fiat_per_coin('bsv')
     assert first_price_btc > first_price_bch
+    assert first_price_bch > first_price_bsv
 
 
 def test_satoshis_per_cent():
@@ -27,6 +39,9 @@ def test_satoshis_per_cent():
     assert first == 100
     assert second == 200
     first, second = bitcoinacceptor.satoshis_per_cent('bch', 100000, 50000)
+    assert first == 10
+    assert second == 20
+    first, second = bitcoinacceptor.satoshis_per_cent('bsv', 100000, 50000)
     assert first == 10
     assert second == 20
 
@@ -37,15 +52,22 @@ def test_fiat_payment_basic():
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'btc',
-                                            10000,
-                                            10001)
+                                           10000,
+                                           10001)
     assert payment.satoshis == 10721
     payment = bitcoinacceptor.fiat_payment('bitcoincash:qqwmyjjplsqwltkcgyeagqpjspaaksz3qggnfug7gy',
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'bch',
-                                            1000,
-                                            1001)
+                                           1000,
+                                           1001)
+    assert payment.satoshis == 100721
+    payment = bitcoinacceptor.fiat_payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                           cents,
+                                           'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                           'bsv',
+                                           1000,
+                                           1001)
     assert payment.satoshis == 100721
 
 
@@ -69,7 +91,7 @@ def test_determinism(mock_get_unspent):
                                       satoshis,
                                       'newuuid')
     # Should be 10357, but 7 confirmations so we ignore it.
-    assert payment.txid == False
+    assert payment.txid is False
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'yetanotheruuid')
@@ -99,7 +121,7 @@ def test_determinism_bch(mock_get_unspent):
                                       'newuuid',
                                       'bch')
     # Should be 10357, but 7 confirmations so we ignore it.
-    assert payment.txid == False
+    assert payment.txid is False
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'yetanotheruuid',
@@ -113,7 +135,7 @@ def test_nonematching():
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
     assert payment.satoshis == 10721
-    assert payment.txid == False
+    assert payment.txid is False
 
 
 def test_empty_address():
@@ -122,7 +144,7 @@ def test_empty_address():
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
     assert payment.satoshis == 10721
-    assert payment.txid == False
+    assert payment.txid is False
 
 
 def test_cents():
@@ -140,12 +162,12 @@ def test_nonematching_fiat():
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'btc')
-    assert payment.txid == False
+    assert payment.txid is False
     payment = bitcoinacceptor.fiat_payment('bitcoincash:qq9gh20y2vur63tpe0xa5dh90zwzsuxagyhp7pfuv3',
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'bch')
-    assert payment.txid == False
+    assert payment.txid is False
 
 
 def test_empty_address_fiat():
@@ -154,9 +176,14 @@ def test_empty_address_fiat():
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'btc')
-    assert payment.txid == False
+    assert payment.txid is False
     payment = bitcoinacceptor.fiat_payment('bitcoincash:qpkp8gwqen8ydlmj5ajuqvd7xt8kj8rpay029ef9z9',
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'bch')
-    assert payment.txid == False
+    assert payment.txid is False
+    payment = bitcoinacceptor.fiat_payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                           cents,
+                                           'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                           'bsv')
+    assert payment.txid is False
