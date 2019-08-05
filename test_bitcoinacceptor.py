@@ -85,6 +85,11 @@ def test_determinism(mock_get_unspent):
     assert payment.txid == 'txid1'
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
+                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                      txids=['txid1'])
+    assert payment.txid == 'txid2'
+    payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                      satoshis,
                                       'uuid')
     assert payment.txid == 'txid3'
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
@@ -111,6 +116,12 @@ def test_determinism_bch(mock_get_unspent):
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                       'bch')
     assert payment.txid == 'txid1'
+    payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                      satoshis,
+                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                      'bch',
+                                      txids=['txid1'])
+    assert payment.txid == 'txid2'
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'uuid',
@@ -151,6 +162,8 @@ def test_cents():
     btc_satoshis, _ = bitcoinacceptor.satoshis_per_cent('btc')
     bch_satoshis, _ = bitcoinacceptor.satoshis_per_cent('bch')
     assert bch_satoshis > btc_satoshis
+    bsv_satoshis, _ = bitcoinacceptor.satoshis_per_cent('bsv')
+    assert bsv_satoshis > bch_satoshis
 
 
 def test_nonematching_fiat():
@@ -167,6 +180,11 @@ def test_nonematching_fiat():
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'bch')
+    assert payment.txid is False
+    payment = bitcoinacceptor.fiat_payment('1coinNJHaeuAN5io49RtDfryxFLWnKR15',
+                                           cents,
+                                           'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                           'bsv')
     assert payment.txid is False
 
 

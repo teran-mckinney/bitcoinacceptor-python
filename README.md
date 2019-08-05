@@ -37,7 +37,7 @@ while True:
 
 # What it does
 
-The text below may be out of date and unreliable. Read the code and decide if this is right for you. Even the code comments may not be correct.
+## The text below may be out of date and unreliable. Read the code and decide if this is right for you. Even the code comments may not be correct.
 
 tl;dr: This is *really* weird. But I think it works in the realm of single digit transaction per second workloads. It's not perfect and it's not totally safe for you or your users, but it may be good enough for most.
 

@@ -83,9 +83,11 @@ def satoshis_per_cent(currency='btc',
 def _unspents(address,
               satoshis_to_try,
               unique,
-              currency='btc'):
+              currency='btc',
+              txids=[]):
     """
-    Expects a sorted list of unspents.
+    txids is an optional list of txids that you have already accepted
+    payment for.
     """
     validate_currency(currency)
 
@@ -98,17 +100,23 @@ def _unspents(address,
 
     if isinstance(satoshis_to_try, int):
         satoshis_to_try = [satoshis_to_try]
-
-    unspents = our_bit.network.NetworkAPI.get_unspent(address)
+    # bitsv has switched to get_unspents(). This is kind of hacky.
+    # https://github.com/AustEcon/bitsv/issues/40
+    if 'get_unspents' in dir(our_bit.network.NetworkAPI):
+        unspents = our_bit.network.NetworkAPI('main').get_unspents(address)
+    else:
+        unspents = our_bit.network.NetworkAPI.get_unspent(address)
     for unspent in unspents:
-        # Bail out if we go back more than 6.
+        # By doing continue instead of break, it can be slower but we should
+        # be able to work with unsorted unspents.
         if unspent.confirmations > MAX_CONFIRMATIONS:
-            break
+            continue
         for satoshis in satoshis_to_try:
             paid_satoshis = _satoshi_security_code(unique)
             paid_satoshis += satoshis
             if unspent.amount == paid_satoshis:
-                return (unspent.txid, unspent.amount)
+                if unspent.txid not in txids:
+                    return (unspent.txid, unspent.amount)
     # If nothing matches...
     now_satoshis = satoshis_to_try[0] + _satoshi_security_code(unique)
     return (False, now_satoshis)
@@ -145,9 +153,13 @@ def _satoshi_security_code(unique,
 def payment(address,
             satoshis,
             unique,
-            currency='btc'):
+            currency='btc',
+            txids=[]):
     """
     Accepts a payment.
+
+    txids is an optional list of txids that you have already accepted
+    payment for.
 
     These comments may be very inaccurate and out of date.
 
@@ -188,7 +200,8 @@ def payment(address,
     txid, satoshis = _unspents(address,
                                satoshis,
                                unique,
-                               currency)
+                               currency,
+                               txids)
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
     return bitcoinacceptor_payment
@@ -199,7 +212,8 @@ def fiat_payment(address,
                  unique,
                  currency='btc',
                  first_price=None,
-                 second_price=None):
+                 second_price=None,
+                 txids=[]):
     """
     Should have been named fiat_denominated_payment()
 
@@ -232,4 +246,5 @@ def fiat_payment(address,
     return payment(address,
                    satoshi_list,
                    unique,
-                   currency)
+                   currency,
+                   txids)
