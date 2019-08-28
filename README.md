@@ -1,14 +1,16 @@
-## bitcoinacceptor: Accept Bitcoin, BitcoinCash, BitcoinSV
+# bitcoinacceptor: Accept Bitcoin, BitcoinCash, BitcoinSV
 
-# Installation
+## Monero support is underway and incomplete
+
+## Installation
 
 * `pip3 install bitcoinacceptor`
 
-# Testing
+## Testing
 
 * `nosetests -vx`
 
-# Usage
+## Usage
 
 ```
 import bitcoinacceptor
@@ -35,9 +37,9 @@ while True:
     sleep(2)
 ```
 
-# What it does
+## What it does
 
-## The text below may be out of date and unreliable. Read the code and decide if this is right for you. Even the code comments may not be correct.
+### The text below may be out of date and unreliable. Read the code and decide if this is right for you. Even the code comments may not be correct.
 
 tl;dr: This is *really* weird. But I think it works in the realm of single digit transaction per second workloads. It's not perfect and it's not totally safe for you or your users, but it may be good enough for most.
 
@@ -61,12 +63,12 @@ Thinking about this more, an attacker can hit your endpoint enough times to buil
 
 You'll want to log txids for time_window /2, roughly. If the txid has been used, don't do it again. That prevents the multiple buys per transaction attack.
 
-# UPDATE
+## UPDATE
 
 0.1.0 is way different. It's Python 3 only. Uses bit. Default satoshi_security is 1,000 instead of 10,000.
 
 Also, it uses confirmations instead of time. So someone can spam you with TXs that will never confirm and get free stuff.
 
-# Licence
+## Licence
 
 [Unlicense/Public domain](LICENSE.txt)

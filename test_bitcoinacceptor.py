@@ -11,6 +11,7 @@ def test_validate_currency():
     assert bitcoinacceptor.validate_currency('btc') is True
     assert bitcoinacceptor.validate_currency('bch') is True
     assert bitcoinacceptor.validate_currency('bsv') is True
+    assert bitcoinacceptor.validate_currency('xmr') is True
     with pytest.raises(ValueError):
         bitcoinacceptor.validate_currency('eth')
 
@@ -30,8 +31,12 @@ def test_fiat_per_coin():
     first_price_btc, _ = bitcoinacceptor.fiat_per_coin('btc')
     first_price_bch, _ = bitcoinacceptor.fiat_per_coin('bch')
     first_price_bsv, _ = bitcoinacceptor.fiat_per_coin('bsv')
+    first_price_xmr, _ = bitcoinacceptor.fiat_per_coin('xmr')
     assert first_price_btc > first_price_bch
     assert first_price_bch > first_price_bsv
+    # FIXME
+    raise ValueError(first_price_xmr)
+    assert first_price_bsv > first_price_xmr
 
 
 def test_satoshis_per_cent():

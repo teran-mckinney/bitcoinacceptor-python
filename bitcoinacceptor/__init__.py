@@ -14,6 +14,7 @@ from hashlib import md5
 import bit
 import bitcash
 import bitsv
+import requests
 
 
 MAX_CONFIRMATIONS = 6
@@ -22,7 +23,11 @@ FIAT_TICKER = 'USD'
 # recommendations per input.
 SATOSHI_FLOOR = 10000
 
-VALID_CURRENCIES = ('btc', 'bch', 'bsv')
+# FIXME: xmr is not supported everywhere yet! Only fiat_per_coin!
+VALID_CURRENCIES = ('btc', 'bch', 'bsv', 'xmr')
+
+# For Monero
+GET_TIMEOUT = 30
 
 
 def validate_currency(currency):
@@ -30,6 +35,14 @@ def validate_currency(currency):
     if currency not in VALID_CURRENCIES:
         raise ValueError(msg)
     return True
+
+
+def _xmr_to_fiat():
+    url = "https://min-api.cryptocompare.com/data/price?fsym=XMR&tsyms=USD"
+    request = requests.get(url=url, timeout=GET_TIMEOUT)
+    request.raise_for_status()
+    request_dict = request.json()
+    return request_dict["USD"]
 
 
 def fiat_per_coin(currency):
@@ -56,6 +69,9 @@ def fiat_per_coin(currency):
     elif currency == 'btc':
         BTC = bit.network.rates.BTC
         price = float(bit.network.rates.satoshi_to_currency(BTC, 'usd'))
+        return price, price
+    elif currency == 'xmr':
+        price = _xmr_to_fiat()
         return price, price
 
 
