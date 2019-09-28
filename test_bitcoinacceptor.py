@@ -4,8 +4,6 @@ import bitcoinacceptor
 import pytest
 from bit.network.meta import Unspent
 
-# flake8: noqa: E501
-
 # These are a bit of a mess, not consistent through all currencies. Should be redone.
 
 # This is a testnet Monero RPC wallet service for tests.
@@ -104,20 +102,46 @@ def test_fiat_payment_basic():
     assert payment.uri == 'monero:Bec1iqCvhkEEm4EsnztUyo71gApFLpDyD44vHg1GHg8DHAEyeAVkDhV5StqRw8FCL5RrFwoDbntgT6wUgX4etYrMA8Bm7Ey?tx_amount=0.001000000000'
     assert payment.satoshis == 1000000000
 
-
-#def test_real_payment_monero():
-#    payment = bitcoinacceptor.payment(None,
-#                                      [11030679076, 5],
-#                                      'a1bd1ff2144bcc66947c4547df75b01a41f83c534287f0e015acc063d37c0bda',
-#                                      'xmr',
-#                                      monero_rpc=monero_rpc)
-#    print(payment.satoshis)
-#    print(payment.uri)
-#    assert payment.uri == 'monero:BZJvYy79FX9JkLAutFGq9j4sthxrBoyGwH9w4Eh6FcJ81RhLhf6DkvHP1CJEM5aFzrWZuGK68tkqXg1Priip81VY2XZ54kw?tx_amount=0.011030679076'
-#    assert payment.satoshis == 11030679076
-#    print(payment.txid)
-#    assert payment.txid == 'aaaa'
-
+def test_real_payment_monero():
+    payment = bitcoinacceptor.payment(address=None,
+                                      satoshis_to_try=[11078414401, 5],
+                                      unique='a70f3f796e7b88fb9a7619cc10dd6a7739ca1e0a183bd2ac888f655af98c444d',
+                                      currency='xmr',
+                                      txids=[],
+                                      monero_rpc=monero_rpc)
+    assert payment.uri == 'monero:Be1BiC1kFfmUbCWGALpwKw2w8ZJL4aYuz1jNXEHM5LSRaAAHRzJwPHD8LBax3gnnJ2g9FhG9eQhCF7gbX9sVAMjbTgQgAqy?tx_amount=0.011078414401'
+    assert payment.satoshis == 11078414401
+    assert payment.txid == '42f612c0d44fca305de41aa00c3bd704297bad9d5c9350cacfd992bd92aa4548'
+    # txid already paid for
+    payment = bitcoinacceptor.payment(address=None,
+                                      satoshis_to_try=[11078414401, 5],
+                                      unique='a70f3f796e7b88fb9a7619cc10dd6a7739ca1e0a183bd2ac888f655af98c444d',
+                                      currency='xmr',
+                                      txids=['42f612c0d44fca305de41aa00c3bd704297bad9d5c9350cacfd992bd92aa4548'],
+                                      monero_rpc=monero_rpc)
+    assert payment.uri == 'monero:Be1BiC1kFfmUbCWGALpwKw2w8ZJL4aYuz1jNXEHM5LSRaAAHRzJwPHD8LBax3gnnJ2g9FhG9eQhCF7gbX9sVAMjbTgQgAqy?tx_amount=0.011078414401'
+    assert payment.satoshis == 11078414401
+    assert payment.txid == False
+    # Opposite order, has been paid.
+    payment = bitcoinacceptor.payment(address=None,
+                                      satoshis_to_try=[5, 11078414401],
+                                      unique='a70f3f796e7b88fb9a7619cc10dd6a7739ca1e0a183bd2ac888f655af98c444d',
+                                      currency='xmr',
+                                      txids=[],
+                                      monero_rpc=monero_rpc)
+    assert payment.uri == 'monero:Be1BiC1kFfmUbCWGALpwKw2w8ZJL4aYuz1jNXEHM5LSRaAAHRzJwPHD8LBax3gnnJ2g9FhG9eQhCF7gbX9sVAMjbTgQgAqy?tx_amount=0.000000000005'
+    assert payment.satoshis == 5
+    assert payment.txid == '42f612c0d44fca305de41aa00c3bd704297bad9d5c9350cacfd992bd92aa4548'
+    # No satoshis has been paid for this one.
+    payment = bitcoinacceptor.payment(address=None,
+                                      satoshis_to_try=[91078414401,5],
+                                      unique='a70f3f796e7b88fb9a7619cc10dd6a7739ca1e0a183bd2ac888f655af98c444d',
+                                      currency='xmr',
+                                      txids=[],
+                                      monero_rpc=monero_rpc)
+    assert payment.uri == 'monero:Be1BiC1kFfmUbCWGALpwKw2w8ZJL4aYuz1jNXEHM5LSRaAAHRzJwPHD8LBax3gnnJ2g9FhG9eQhCF7gbX9sVAMjbTgQgAqy?tx_amount=0.091078414401'
+    assert payment.satoshis == 91078414401
+    assert payment.txid == False
 
 
 @patch('bitcoinacceptor.bit.network.NetworkAPI.get_unspent')

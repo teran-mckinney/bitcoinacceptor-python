@@ -110,9 +110,10 @@ def satoshis_per_cent(currency='btc',
 def _monero_security_code(unique):
     """
     So, there's this:
-    https://monero.stackexchange.com/questions/10184/funds-received-from-subwallet-are-not-showing
+    https://monero.stackexchange.com/questions/10184/
 
-    Monero only looks ahead 200 addresses by default. I was hoping for 64 bits worth of addresses.
+    Monero only looks ahead 200 addresses by default. I was hoping for 64 bits
+    worth of addresses.
     I guess that's too much.
 
     For now, let's just do 200.
@@ -151,9 +152,8 @@ def _monero_unspents(unique,
     unique_address = w.get_address(security_code_major, security_code_minor)
     return_address = str(unique_address)
     # Allow unconfirmed.
-    incoming_tx = w.incoming(local_address=unique_address, unconfirmed=True, confirmed=True)
-    for tx_index in incoming_tx:
-        tx = incoming_tx[tx_index]
+    incoming_tx = w.incoming(local_address=unique_address, unconfirmed=True)
+    for tx in incoming_tx:
         if tx.transaction.hash not in txids:
             for piconero in piconero_to_try:
                 if from_atomic(piconero) == tx.amount:
