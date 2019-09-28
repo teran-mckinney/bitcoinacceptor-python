@@ -4,7 +4,16 @@ import bitcoinacceptor
 import pytest
 from bit.network.meta import Unspent
 
+# flake8: noqa: E501
+
 # These are a bit of a mess, not consistent through all currencies. Should be redone.
+
+# This is a testnet Monero RPC wallet service for tests.
+# You can also just use localhost and run your own.
+monero_rpc = {"host": "ssjulcg5dmz7itglkx2bdms7cdjfxtd2gjfqmooadehcbziogq7bvwqd.onion",
+              "port": 6799,
+              "user": "demouser",
+              "password": "demopassword"}
 
 
 def test_validate_currency():
@@ -27,6 +36,18 @@ def test_security_code():
     assert code == 991
 
 
+def test_monero_security_code():
+    codes = bitcoinacceptor._monero_security_code('foo')
+    # Looks like we can't do 64 bits of codes...
+    # assert codes[0] == 12512379
+    # assert codes[1] == 245625085
+    assert codes[0] == 0
+    assert codes[1] == 190
+    codes = bitcoinacceptor._monero_security_code('foo2')
+    assert codes[0] == 0
+    assert codes[1] == 143
+
+
 def test_fiat_per_coin():
     first_price_btc, _ = bitcoinacceptor.fiat_per_coin('btc')
     first_price_bch, _ = bitcoinacceptor.fiat_per_coin('bch')
@@ -34,8 +55,6 @@ def test_fiat_per_coin():
     first_price_xmr, _ = bitcoinacceptor.fiat_per_coin('xmr')
     assert first_price_btc > first_price_bch
     assert first_price_bch > first_price_bsv
-    # FIXME
-    raise ValueError(first_price_xmr)
     assert first_price_bsv > first_price_xmr
 
 
@@ -44,11 +63,11 @@ def test_satoshis_per_cent():
     assert first == 100
     assert second == 200
     first, second = bitcoinacceptor.satoshis_per_cent('bch', 100000, 50000)
-    assert first == 10
-    assert second == 20
+    assert int(first) == 10
+    assert int(second) == 20
     first, second = bitcoinacceptor.satoshis_per_cent('bsv', 100000, 50000)
-    assert first == 10
-    assert second == 20
+    assert int(first) == 10
+    assert int(second) == 20
 
 
 def test_fiat_payment_basic():
@@ -60,6 +79,7 @@ def test_fiat_payment_basic():
                                            10000,
                                            10001)
     assert payment.satoshis == 10721
+    assert payment.uri == 'bitcoin:16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq?amount=0.00010721'
     payment = bitcoinacceptor.fiat_payment('bitcoincash:qqwmyjjplsqwltkcgyeagqpjspaaksz3qggnfug7gy',
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
@@ -74,6 +94,30 @@ def test_fiat_payment_basic():
                                            1000,
                                            1001)
     assert payment.satoshis == 100721
+    payment = bitcoinacceptor.fiat_payment(None,
+                                           cents,
+                                           'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                           'xmr',
+                                           1000,
+                                           1001,
+                                           monero_rpc=monero_rpc)
+    assert payment.uri == 'monero:Bec1iqCvhkEEm4EsnztUyo71gApFLpDyD44vHg1GHg8DHAEyeAVkDhV5StqRw8FCL5RrFwoDbntgT6wUgX4etYrMA8Bm7Ey?tx_amount=0.001000000000'
+    assert payment.satoshis == 1000000000
+
+
+#def test_real_payment_monero():
+#    payment = bitcoinacceptor.payment(None,
+#                                      [11030679076, 5],
+#                                      'a1bd1ff2144bcc66947c4547df75b01a41f83c534287f0e015acc063d37c0bda',
+#                                      'xmr',
+#                                      monero_rpc=monero_rpc)
+#    print(payment.satoshis)
+#    print(payment.uri)
+#    assert payment.uri == 'monero:BZJvYy79FX9JkLAutFGq9j4sthxrBoyGwH9w4Eh6FcJ81RhLhf6DkvHP1CJEM5aFzrWZuGK68tkqXg1Priip81VY2XZ54kw?tx_amount=0.011030679076'
+#    assert payment.satoshis == 11030679076
+#    print(payment.txid)
+#    assert payment.txid == 'aaaa'
+
 
 
 @patch('bitcoinacceptor.bit.network.NetworkAPI.get_unspent')

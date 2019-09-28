@@ -3,18 +3,24 @@ bitcoinacceptor library
 
 Helps you accept Bitcoins without paying to accept Bitcoins.
 
-Or Bitcoin Cash!
+Or Bitcoin Cash, Bitcoin SV, or Monero!
 
 Released into the public domain.
 """
-
+import logging
 from collections import namedtuple
-from hashlib import md5
+from hashlib import md5, sha1
 
 import bit
 import bitcash
 import bitsv
 import requests
+from sporestackv2 import utilities
+from monero.wallet import Wallet
+from monero.backends.jsonrpc import JSONRPCWallet
+from monero.numbers import from_atomic
+
+logging.basicConfig(level=logging.INFO)
 
 
 MAX_CONFIRMATIONS = 6
@@ -23,10 +29,9 @@ FIAT_TICKER = 'USD'
 # recommendations per input.
 SATOSHI_FLOOR = 10000
 
-# FIXME: xmr is not supported everywhere yet! Only fiat_per_coin!
 VALID_CURRENCIES = ('btc', 'bch', 'bsv', 'xmr')
 
-# For Monero
+# For Monero's fiat_per_coin
 GET_TIMEOUT = 30
 
 
@@ -75,20 +80,26 @@ def fiat_per_coin(currency):
         return price, price
 
 
-# FIXME: This won't work when the price is 100x. Need to switch to floating
-# point then.
 def satoshis_per_cent(currency='btc',
                       first_price=None,
                       second_price=None):
     """
     Returns "new" and "old" cents.
     This is designed so you don't get crossover gaps with lost payments.
+
+    For Monero, returns piconero per cent.
     """
     if first_price is None and second_price is None:
         first_price, second_price = fiat_per_coin(currency)
 
-    def _convert_to_satoshi_per_cent(btcusd):
-        return int((1 / btcusd * 100000000 / 100))
+    if currency == 'xmr':
+        # 12 decimal places for piconero.
+        def _convert_to_satoshi_per_cent(crypto_usd):
+            return 1 / crypto_usd * 1000000000000 / 100
+    else:
+        # 8 decimal places for satoshis.
+        def _convert_to_satoshi_per_cent(crypto_usd):
+            return 1 / crypto_usd * 100000000 / 100
 
     satoshis_per_cent_list = [_convert_to_satoshi_per_cent(first_price),
                               _convert_to_satoshi_per_cent(second_price)]
@@ -96,23 +107,81 @@ def satoshis_per_cent(currency='btc',
     return satoshis_per_cent_list
 
 
+def _monero_security_code(unique):
+    """
+    So, there's this:
+    https://monero.stackexchange.com/questions/10184/funds-received-from-subwallet-are-not-showing
+
+    Monero only looks ahead 200 addresses by default. I was hoping for 64 bits worth of addresses.
+    I guess that's too much.
+
+    For now, let's just do 200.
+    """
+    hashable = bytes(unique, 'utf-8')
+    unique_hash = sha1(hashable).hexdigest()
+    # each part is 32 bits, so take that much.
+    # security_code_major = int(unique_hash[0:7], 16)
+    # security_code_minor = int(unique_hash[8:15], 16)
+    security_code_major = 0
+    # 0:1 wasn't giving me 0-255??? Weird.
+    # 199 just in case it's 0-199 and not 0-200.
+    security_code_minor = int(unique_hash[0:3], 16) % 199
+    return (security_code_major, security_code_minor)
+
+
+def _monero_unspents(unique,
+                     piconero_to_try,
+                     txids,
+                     host,
+                     port,
+                     user,
+                     password):
+    """
+    Get incoming transactions from Monero RPC and see if we have a winner.
+
+    unique is used to get us a specific address for the unique.
+
+    No satoshi security here since we have unique addresses.
+    """
+    w = Wallet(JSONRPCWallet(host=host,
+                             port=port,
+                             user=user,
+                             password=password))
+    security_code_major, security_code_minor = _monero_security_code(unique)
+    unique_address = w.get_address(security_code_major, security_code_minor)
+    return_address = str(unique_address)
+    # Allow unconfirmed.
+    incoming_tx = w.incoming(local_address=unique_address, unconfirmed=True, confirmed=True)
+    for tx_index in incoming_tx:
+        tx = incoming_tx[tx_index]
+        if tx.transaction.hash not in txids:
+            for piconero in piconero_to_try:
+                if from_atomic(piconero) == tx.amount:
+                    return (return_address, tx.transaction.hash)
+    # address, txid
+    return (return_address, False)
+
+
 def _unspents(address,
               satoshis_to_try,
               unique,
               currency='btc',
-              txids=[]):
+              txids=[],
+              monero_rpc=None):
     """
     txids is an optional list of txids that you have already accepted
     payment for.
-    """
-    validate_currency(currency)
 
+    Unsepnts for Bitcoin, Bitcoin Cash, or Bitcoin SV.
+    """
     if currency == 'btc':
         our_bit = bit
     elif currency == 'bch':
         our_bit = bitcash
     elif currency == 'bsv':
         our_bit = bitsv
+    else:
+        raise ValueError('_unspents is only for btc, bch, and bsv.')
 
     if isinstance(satoshis_to_try, int):
         satoshis_to_try = [satoshis_to_try]
@@ -135,6 +204,7 @@ def _unspents(address,
                     return (unspent.txid, unspent.amount)
     # If nothing matches...
     now_satoshis = satoshis_to_try[0] + _satoshi_security_code(unique)
+    # txid, satoshis
     return (False, now_satoshis)
 
 
@@ -167,17 +237,20 @@ def _satoshi_security_code(unique,
 
 
 def payment(address,
-            satoshis,
+            satoshis_to_try,
             unique,
             currency='btc',
-            txids=[]):
+            txids=[],
+            monero_rpc=None):
     """
     Accepts a payment.
 
     txids is an optional list of txids that you have already accepted
     payment for.
 
-    These comments may be very inaccurate and out of date.
+    address should be None for Monero.
+
+    **These comments are be very inaccurate and out of date.**
 
     unique is something that you associate with the particular payment.
     Hopefully, a UUID. If there is any risk of the unique being captured by
@@ -212,14 +285,37 @@ def payment(address,
     validate_currency(currency)
     bitcoinacceptor_payment = namedtuple('bitcoinacceptor_payment',
                                          ['satoshis',
-                                          'txid'])
-    txid, satoshis = _unspents(address,
-                               satoshis,
-                               unique,
-                               currency,
-                               txids)
+                                          'txid',
+                                          'uri'])
+
+    if currency == 'xmr':
+        if address is not None:
+            raise ValueError('address must be none when using Monero (XMR)')
+        if not isinstance(monero_rpc, dict):
+            msg = 'With currency set to xmr, monero_rpc must be a dict with '
+            msg += 'host, port, user, password'
+            raise ValueError(msg)
+        address, txid = _monero_unspents(unique=unique,
+                                         piconero_to_try=satoshis_to_try,
+                                         txids=txids,
+                                         host=monero_rpc['host'],
+                                         port=monero_rpc['port'],
+                                         user=monero_rpc['user'],
+                                         password=monero_rpc['password'])
+        satoshis = satoshis_to_try[0]
+    else:
+        txid, satoshis = _unspents(address,
+                                   satoshis_to_try,
+                                   unique,
+                                   currency,
+                                   txids,
+                                   monero_rpc)
+
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
+    bitcoinacceptor_payment.uri = utilities.payment_to_uri(address,
+                                                           currency,
+                                                           satoshis)
     return bitcoinacceptor_payment
 
 
@@ -229,18 +325,21 @@ def fiat_payment(address,
                  currency='btc',
                  first_price=None,
                  second_price=None,
-                 txids=[]):
+                 txids=[],
+                 monero_rpc=None):
     """
     Should have been named fiat_denominated_payment()
 
     Tries to accept a payment denominated in US cents.
+
+    address should be None for Monero.
     """
     validate_currency(currency)
     first_cents, second_cents = satoshis_per_cent(currency,
                                                   first_price,
                                                   second_price)
-    first_satoshis = first_cents * cents
-    second_satoshis = second_cents * cents
+    first_satoshis = int(first_cents * cents)
+    second_satoshis = int(second_cents * cents)
 
     # Minimum accepted payment on the network is roughly 10,000
     # Some clients won't even let you send that little.
@@ -249,18 +348,21 @@ def fiat_payment(address,
     # This is because the price might drop suddenly, floor
     # doesn't apply, then we skip the older, higher price
     # which the client paid at.
+    #
+    # No idea what the floor is for Monero.
     if first_satoshis < SATOSHI_FLOOR:
         first_satoshis = SATOSHI_FLOOR
     if second_satoshis < SATOSHI_FLOOR:
         second_satoshis = SATOSHI_FLOOR
 
     if first_satoshis == second_satoshis:
-        satoshi_list = [first_satoshis]
+        satoshis_to_try = [first_satoshis]
     else:
-        satoshi_list = [first_satoshis, second_satoshis]
+        satoshis_to_try = [first_satoshis, second_satoshis]
 
     return payment(address,
-                   satoshi_list,
+                   satoshis_to_try,
                    unique,
                    currency,
-                   txids)
+                   txids,
+                   monero_rpc)

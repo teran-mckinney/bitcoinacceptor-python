@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.3.2'
+VERSION = '0.4.1'
 
 DOWNLOAD_URL = 'https://github.com/teran-mckinney/bitcoinacceptor-python/tarball/{}'
 
@@ -13,7 +13,7 @@ setup(
     author='Teran McKinney',
     author_email='sega01@go-beyond.org',
     description='Accept Bitcoin without spending as much Bitcoin',
-    keywords=['bitcoin', 'bitcoincash', 'bitcoinsv'],
+    keywords=['bitcoin', 'bitcoincash', 'bitcoinsv', 'monero'],
     license='Unlicense',
     url='https://github.com/teran-mckinney/bitcoinacceptor-python/',
     download_url=DOWNLOAD_URL.format(VERSION),
@@ -22,7 +22,9 @@ setup(
         'requests',
         'bit',
         'bitcash>=0.5.2.5',
-        'bitsv'
+        'bitsv',
+        'monero',
+        'sporestack>=1.1.1'
     ],
     tests_require=['flake8', 'pytest']
 )

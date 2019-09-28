@@ -1,6 +1,4 @@
-# bitcoinacceptor: Accept Bitcoin, BitcoinCash, BitcoinSV
-
-## Monero support is underway and incomplete
+# bitcoinacceptor: Accept Bitcoin, BitcoinCash, BitcoinSV, and Monero
 
 ## Installation
 
@@ -11,6 +9,8 @@
 * `nosetests -vx`
 
 ## Usage
+
+Monero requires a [RPC wallet to connect to](https://monero-python.readthedocs.io/en/latest/quickstart.html).
 
 ```
 import bitcoinacceptor
@@ -68,6 +68,13 @@ You'll want to log txids for time_window /2, roughly. If the txid has been used,
 0.1.0 is way different. It's Python 3 only. Uses bit. Default satoshi_security is 1,000 instead of 10,000.
 
 Also, it uses confirmations instead of time. So someone can spam you with TXs that will never confirm and get free stuff.
+
+## Has this made you millions and you're feeling generous?
+
+* Bitcoin: 19PyKGyYBn5Xg5LmofyxEU1oy6rDgZ4yiS
+* Bitcoin Cash: qrs8spxa5eyvs7gsejaf0cv2dtt9l4czk5wznepfze
+* Bitcoin SV: 17RAeAnVdfTG4uEAnXKbPQ93pkg4jjaFKS
+* Monero: 42CDfnw6j2FgZYg5rAPMmWg73WdmLHbAaj1PQLtw2uuwZmT53gPddhEHQAgBKxSo1iYTaTRovmkn68r9rvGbgzPyBN5rohJ
 
 ## Licence
 
