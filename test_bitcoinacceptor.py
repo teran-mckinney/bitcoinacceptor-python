@@ -8,7 +8,7 @@ from bit.network.meta import Unspent
 
 # This is a testnet Monero RPC wallet service for tests.
 # You can also just use localhost and run your own.
-monero_rpc = {"host": "ssjulcg5dmz7itglkx2bdms7cdjfxtd2gjfqmooadehcbziogq7bvwqd.onion",
+monero_rpc = {"host": "6eqrlligxznaerq52snzdzlcxujmd5pfxkodmdvtzdtayx4rfn3tgpyd.onion",
               "port": 6799,
               "user": "demouser",
               "password": "demopassword"}

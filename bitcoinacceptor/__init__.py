@@ -144,10 +144,14 @@ def _monero_unspents(unique,
 
     No satoshi security here since we have unique addresses.
     """
+    proxy_url = None
+    if host.endswith('.onion'):
+        proxy_url = 'socks5h://127.0.0.1:9050'
     w = Wallet(JSONRPCWallet(host=host,
                              port=port,
                              user=user,
-                             password=password))
+                             password=password,
+                             proxy_url=proxy_url))
     security_code_major, security_code_minor = _monero_security_code(unique)
     unique_address = w.get_address(security_code_major, security_code_minor)
     return_address = str(unique_address)
