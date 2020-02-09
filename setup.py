@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-VERSION = '0.4.3'
+VERSION = '0.4.4'
 
 DOWNLOAD_URL = 'https://github.com/teran-mckinney/bitcoinacceptor-python/tarball/{}'
 

@@ -155,8 +155,13 @@ def _monero_unspents(unique,
     security_code_major, security_code_minor = _monero_security_code(unique)
     unique_address = w.get_address(security_code_major, security_code_minor)
     return_address = str(unique_address)
-    # Allow unconfirmed.
-    incoming_tx = w.incoming(local_address=unique_address, unconfirmed=True)
+    # Allow last 100 blocks. (200 minutes average)
+    minimum_height = w.height() - 100
+    # Don't allow unconfirmed.
+    incoming_tx = w.incoming(local_address=unique_address,
+                             min_height=minimum_height,
+                             confirmed=True,
+                             unconfirmed=False)
     for tx in incoming_tx:
         if tx.transaction.hash not in txids:
             for piconero in piconero_to_try:
