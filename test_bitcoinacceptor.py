@@ -47,13 +47,13 @@ def test_monero_security_code():
 
 
 def test_fiat_per_coin():
-    first_price_btc, _ = bitcoinacceptor.fiat_per_coin('btc')
-    first_price_bch, _ = bitcoinacceptor.fiat_per_coin('bch')
-    first_price_bsv, _ = bitcoinacceptor.fiat_per_coin('bsv')
-    first_price_xmr, _ = bitcoinacceptor.fiat_per_coin('xmr')
-    assert first_price_btc > first_price_bch
-    assert first_price_bch > first_price_bsv
-    assert first_price_bsv > first_price_xmr
+    price_btc = bitcoinacceptor.fiat_per_coin('btc')
+    price_bch = bitcoinacceptor.fiat_per_coin('bch')
+    price_bsv = bitcoinacceptor.fiat_per_coin('bsv')
+    price_xmr = bitcoinacceptor.fiat_per_coin('xmr')
+    assert price_btc > price_bch
+    assert price_bch > price_bsv
+    assert price_bsv > price_xmr
 
 
 def test_satoshis_per_cent():

@@ -58,26 +58,19 @@ def fiat_per_coin(currency):
     of this comment)
 
     'currency' is the cryptocurrency, not the fiat.
-
-    Will eventually just return one output. This is
-    being tweaked.
     """
     validate_currency(currency)
     if currency == 'bch':
         BCH = bitcash.network.rates.BCH
-        price = float(bitcash.network.rates.satoshi_to_currency(BCH, 'usd'))
-        return price, price
+        return float(bitcash.network.rates.satoshi_to_currency(BCH, 'usd'))
     elif currency == 'bsv':
         BSV = bitsv.network.rates.BSV
-        price = float(bitsv.network.rates.satoshi_to_currency(BSV, 'usd'))
-        return price, price
+        return float(bitsv.network.rates.satoshi_to_currency(BSV, 'usd'))
     elif currency == 'btc':
         BTC = bit.network.rates.BTC
-        price = float(bit.network.rates.satoshi_to_currency(BTC, 'usd'))
-        return price, price
+        return float(bit.network.rates.satoshi_to_currency(BTC, 'usd'))
     elif currency == 'xmr':
-        price = _xmr_to_fiat()
-        return price, price
+        return _xmr_to_fiat()
 
 
 def satoshis_per_cent(currency='btc',
@@ -90,7 +83,8 @@ def satoshis_per_cent(currency='btc',
     For Monero, returns piconero per cent.
     """
     if first_price is None and second_price is None:
-        first_price, second_price = fiat_per_coin(currency)
+        first_price = fiat_per_coin(currency)
+        second_price = first_price
 
     if currency == 'xmr':
         # 12 decimal places for piconero.
@@ -158,6 +152,8 @@ def _monero_unspents(unique,
     # Allow last 100 blocks. (200 minutes average)
     minimum_height = w.height() - 100
     # Allow unconfirmed, for now.
+    # Cannot use min_height and unconfirmed together.
+    # Unconfirm TXs get ignored with that combination.
     incoming_tx = w.incoming(local_address=unique_address,
                              min_height=minimum_height,
                              confirmed=True,
