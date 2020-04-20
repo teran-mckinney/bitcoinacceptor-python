@@ -22,7 +22,8 @@ from monero.numbers import from_atomic
 
 logging.basicConfig(level=logging.INFO)
 
-
+# Only for BTC, BCH, and BSV
+MIN_CONFIRMATIONS = 1
 MAX_CONFIRMATIONS = 6
 FIAT_TICKER = 'USD'
 # Ideally, this should be dynamic and be based on economy TX fee
@@ -151,13 +152,10 @@ def _monero_unspents(unique,
     return_address = str(unique_address)
     # Allow last 100 blocks. (200 minutes average)
     minimum_height = w.height() - 100
-    # Allow unconfirmed, for now.
-    # Cannot use min_height and unconfirmed together.
-    # Unconfirm TXs get ignored with that combination.
     incoming_tx = w.incoming(local_address=unique_address,
                              min_height=minimum_height,
                              confirmed=True,
-                             unconfirmed=True)
+                             unconfirmed=False)
     for tx in incoming_tx:
         if tx.transaction.hash not in txids:
             for piconero in piconero_to_try:
@@ -177,7 +175,7 @@ def _unspents(address,
     txids is an optional list of txids that you have already accepted
     payment for.
 
-    Unsepnts for Bitcoin, Bitcoin Cash, or Bitcoin SV.
+    Unspents for Bitcoin, Bitcoin Cash, or Bitcoin SV.
     """
     if currency == 'btc':
         our_bit = bit
@@ -200,6 +198,8 @@ def _unspents(address,
         # By doing continue instead of break, it can be slower but we should
         # be able to work with unsorted unspents.
         if unspent.confirmations > MAX_CONFIRMATIONS:
+            continue
+        if unspent.confirmations < MIN_CONFIRMATIONS:
             continue
         for satoshis in satoshis_to_try:
             paid_satoshis = _satoshi_security_code(unique)

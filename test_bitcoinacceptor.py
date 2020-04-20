@@ -134,7 +134,7 @@ def test_real_payment_monero():
     assert payment.txid == '42f612c0d44fca305de41aa00c3bd704297bad9d5c9350cacfd992bd92aa4548'
     # No satoshis has been paid for this one.
     payment = bitcoinacceptor.payment(address=None,
-                                      satoshis_to_try=[91078414401,5],
+                                      satoshis_to_try=[91078414401, 5],
                                       unique='a70f3f796e7b88fb9a7619cc10dd6a7739ca1e0a183bd2ac888f655af98c444d',
                                       currency='xmr',
                                       txids=[],
@@ -146,12 +146,20 @@ def test_real_payment_monero():
 
 @patch('bitcoinacceptor.bit.network.NetworkAPI.get_unspent')
 def test_determinism(mock_get_unspent):
-    test_data = [Unspent(amount=10721, confirmations=0, script='script', txid='txid1', txindex=1),
-                 Unspent(amount=10721, confirmations=1, script='script', txid='txid2', txindex=1),
-                 Unspent(amount=10081, confirmations=2, script='script', txid='txid3', txindex=1),
-                 Unspent(amount=10357, confirmations=7, script='script', txid='txid4', txindex=1)]
+    # We don't allow unspents.
+    test_data = [Unspent(amount=10721, confirmations=0, script='script', txid='txid1', txindex=1)]
     mock_get_unspent.return_value = test_data
     satoshis = 10000
+    payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                      satoshis,
+                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc')
+    assert payment.txid is False
+
+    test_data = [Unspent(amount=10721, confirmations=1, script='script', txid='txid1', txindex=1),
+                 Unspent(amount=10721, confirmations=2, script='script', txid='txid2', txindex=1),
+                 Unspent(amount=10081, confirmations=3, script='script', txid='txid3', txindex=1),
+                 Unspent(amount=10357, confirmations=7, script='script', txid='txid4', txindex=1)]
+    mock_get_unspent.return_value = test_data
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc')
@@ -178,9 +186,9 @@ def test_determinism(mock_get_unspent):
 
 @patch('bitcoinacceptor.bitcash.network.NetworkAPI.get_unspent')
 def test_determinism_bch(mock_get_unspent):
-    test_data = [Unspent(amount=10721, confirmations=0, script='script', txid='txid1', txindex=1),
-                 Unspent(amount=10721, confirmations=1, script='script', txid='txid2', txindex=1),
-                 Unspent(amount=10081, confirmations=2, script='script', txid='txid3', txindex=1),
+    test_data = [Unspent(amount=10721, confirmations=1, script='script', txid='txid1', txindex=1),
+                 Unspent(amount=10721, confirmations=2, script='script', txid='txid2', txindex=1),
+                 Unspent(amount=10081, confirmations=3, script='script', txid='txid3', txindex=1),
                  Unspent(amount=10357, confirmations=7, script='script', txid='txid4', txindex=1)]
     mock_get_unspent.return_value = test_data
     satoshis = 10000
@@ -188,6 +196,12 @@ def test_determinism_bch(mock_get_unspent):
                                       satoshis,
                                       'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                       'bch')
+    assert payment.txid == 'txid1'
+    payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
+                                      satoshis,
+                                      'cab41de5-ad64-446d-9ab4-6dc794162bfc',
+                                      'bch',
+                                      txids=['txid2'])
     assert payment.txid == 'txid1'
     payment = bitcoinacceptor.payment('16jCrzcXo2PxadrQiQwUgwrmEwDGQYBwZq',
                                       satoshis,
