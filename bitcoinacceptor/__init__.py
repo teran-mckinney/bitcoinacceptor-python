@@ -317,7 +317,7 @@ def payment(address,
                                    currency,
                                    txids,
                                    monero_rpc,
-                                   min_confirmations=MIN_CONFIRMATIONS)
+                                   min_confirmations=min_confirmations)
 
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
