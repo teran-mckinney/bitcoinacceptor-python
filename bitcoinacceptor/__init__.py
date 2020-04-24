@@ -170,7 +170,8 @@ def _unspents(address,
               unique,
               currency='btc',
               txids=[],
-              monero_rpc=None):
+              monero_rpc=None,
+              min_confirmations=MIN_CONFIRMATIONS):
     """
     txids is an optional list of txids that you have already accepted
     payment for.
@@ -199,7 +200,7 @@ def _unspents(address,
         # be able to work with unsorted unspents.
         if unspent.confirmations > MAX_CONFIRMATIONS:
             continue
-        if unspent.confirmations < MIN_CONFIRMATIONS:
+        if unspent.confirmations < min_confirmations:
             continue
         for satoshis in satoshis_to_try:
             paid_satoshis = _satoshi_security_code(unique)
@@ -246,7 +247,8 @@ def payment(address,
             unique,
             currency='btc',
             txids=[],
-            monero_rpc=None):
+            monero_rpc=None,
+            min_confirmations=MIN_CONFIRMATIONS):
     """
     Accepts a payment.
 
@@ -314,7 +316,8 @@ def payment(address,
                                    unique,
                                    currency,
                                    txids,
-                                   monero_rpc)
+                                   monero_rpc,
+                                   min_confirmations=MIN_CONFIRMATIONS)
 
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
@@ -331,7 +334,8 @@ def fiat_payment(address,
                  first_price=None,
                  second_price=None,
                  txids=[],
-                 monero_rpc=None):
+                 monero_rpc=None,
+                 min_confirmations=MIN_CONFIRMATIONS):
     """
     Should have been named fiat_denominated_payment()
 
@@ -370,4 +374,5 @@ def fiat_payment(address,
                    unique,
                    currency,
                    txids,
-                   monero_rpc)
+                   monero_rpc,
+                   min_confirmations)
