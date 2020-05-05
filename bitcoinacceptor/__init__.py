@@ -350,6 +350,11 @@ def fiat_payment(address,
     first_satoshis = int(first_cents * cents)
     second_satoshis = int(second_cents * cents)
 
+    # Only require 8 digits of precision.
+    if currency == 'xmr':
+        first_satoshis = (first_satoshis // 10000) * 10000
+        second_satoshis = (second_satoshis // 10000) * 10000
+
     # Minimum accepted payment on the network is roughly 10,000
     # Some clients won't even let you send that little.
     # If we optimize this to skip this from happening twice

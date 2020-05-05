@@ -66,6 +66,9 @@ def test_satoshis_per_cent():
     first, second = bitcoinacceptor.satoshis_per_cent('bsv', 100000, 50000)
     assert int(first) == 10
     assert int(second) == 20
+    first, second = bitcoinacceptor.satoshis_per_cent('xmr', 100000, 50000)
+    assert int(first) == 100000
+    assert int(second) == 200000
 
 
 def test_fiat_payment_basic():
@@ -96,11 +99,11 @@ def test_fiat_payment_basic():
                                            cents,
                                            'cab41de5-ad64-446d-9ab4-6dc794162bfc',
                                            'xmr',
-                                           1000,
-                                           1001,
+                                           1234,
+                                           1233,
                                            monero_rpc=monero_rpc)
-    assert payment.uri == 'monero:Bec1iqCvhkEEm4EsnztUyo71gApFLpDyD44vHg1GHg8DHAEyeAVkDhV5StqRw8FCL5RrFwoDbntgT6wUgX4etYrMA8Bm7Ey?tx_amount=0.001000000000'
-    assert payment.satoshis == 1000000000
+    assert payment.uri == 'monero:Bec1iqCvhkEEm4EsnztUyo71gApFLpDyD44vHg1GHg8DHAEyeAVkDhV5StqRw8FCL5RrFwoDbntgT6wUgX4etYrMA8Bm7Ey?tx_amount=0.000810370000'
+    assert payment.satoshis == 810370000
 
 def test_real_payment_monero():
     payment = bitcoinacceptor.payment(address=None,
