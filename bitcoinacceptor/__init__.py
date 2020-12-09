@@ -25,19 +25,19 @@ logging.basicConfig(level=logging.INFO)
 # Only for BTC, BCH, and BSV
 MIN_CONFIRMATIONS = 1
 MAX_CONFIRMATIONS = 6
-FIAT_TICKER = 'USD'
+FIAT_TICKER = "USD"
 # Ideally, this should be dynamic and be based on economy TX fee
 # recommendations per input.
 SATOSHI_FLOOR = 10000
 
-VALID_CURRENCIES = ('btc', 'bch', 'bsv', 'xmr')
+VALID_CURRENCIES = ("btc", "bch", "bsv", "xmr")
 
 # For Monero's fiat_per_coin
 GET_TIMEOUT = 30
 
 
 def validate_currency(currency):
-    msg = 'currency must be one of: {}'.format(VALID_CURRENCIES)
+    msg = "currency must be one of: {}".format(VALID_CURRENCIES)
     if currency not in VALID_CURRENCIES:
         raise ValueError(msg)
     return True
@@ -61,22 +61,20 @@ def fiat_per_coin(currency):
     'currency' is the cryptocurrency, not the fiat.
     """
     validate_currency(currency)
-    if currency == 'bch':
+    if currency == "bch":
         BCH = bitcash.network.rates.BCH
-        return float(bitcash.network.rates.satoshi_to_currency(BCH, 'usd'))
-    elif currency == 'bsv':
+        return float(bitcash.network.rates.satoshi_to_currency(BCH, "usd"))
+    elif currency == "bsv":
         BSV = bitsv.network.rates.BSV
-        return float(bitsv.network.rates.satoshi_to_currency(BSV, 'usd'))
-    elif currency == 'btc':
+        return float(bitsv.network.rates.satoshi_to_currency(BSV, "usd"))
+    elif currency == "btc":
         BTC = bit.network.rates.BTC
-        return float(bit.network.rates.satoshi_to_currency(BTC, 'usd'))
-    elif currency == 'xmr':
+        return float(bit.network.rates.satoshi_to_currency(BTC, "usd"))
+    elif currency == "xmr":
         return _xmr_to_fiat()
 
 
-def satoshis_per_cent(currency='btc',
-                      first_price=None,
-                      second_price=None):
+def satoshis_per_cent(currency="btc", first_price=None, second_price=None):
     """
     Returns "new" and "old" cents.
     This is designed so you don't get crossover gaps with lost payments.
@@ -87,17 +85,20 @@ def satoshis_per_cent(currency='btc',
         first_price = fiat_per_coin(currency)
         second_price = first_price
 
-    if currency == 'xmr':
+    if currency == "xmr":
         # 12 decimal places for piconero.
         def _convert_to_satoshi_per_cent(crypto_usd):
             return 1 / crypto_usd * 1000000000000 / 100
+
     else:
         # 8 decimal places for satoshis.
         def _convert_to_satoshi_per_cent(crypto_usd):
             return 1 / crypto_usd * 100000000 / 100
 
-    satoshis_per_cent_list = [_convert_to_satoshi_per_cent(first_price),
-                              _convert_to_satoshi_per_cent(second_price)]
+    satoshis_per_cent_list = [
+        _convert_to_satoshi_per_cent(first_price),
+        _convert_to_satoshi_per_cent(second_price),
+    ]
 
     return satoshis_per_cent_list
 
@@ -113,7 +114,7 @@ def _monero_security_code(unique):
 
     For now, let's just do 200.
     """
-    hashable = bytes(unique, 'utf-8')
+    hashable = bytes(unique, "utf-8")
     unique_hash = sha1(hashable).hexdigest()
     # each part is 32 bits, so take that much.
     # security_code_major = int(unique_hash[0:7], 16)
@@ -125,13 +126,7 @@ def _monero_security_code(unique):
     return (security_code_major, security_code_minor)
 
 
-def _monero_unspents(unique,
-                     piconero_to_try,
-                     txids,
-                     host,
-                     port,
-                     user,
-                     password):
+def _monero_unspents(unique, piconero_to_try, txids, host, port, user, password):
     """
     Get incoming transactions from Monero RPC and see if we have a winner.
 
@@ -140,22 +135,24 @@ def _monero_unspents(unique,
     No satoshi security here since we have unique addresses.
     """
     proxy_url = None
-    if host.endswith('.onion'):
-        proxy_url = 'socks5h://127.0.0.1:9050'
-    w = Wallet(JSONRPCWallet(host=host,
-                             port=port,
-                             user=user,
-                             password=password,
-                             proxy_url=proxy_url))
+    if host.endswith(".onion"):
+        proxy_url = "socks5h://127.0.0.1:9050"
+    w = Wallet(
+        JSONRPCWallet(
+            host=host, port=port, user=user, password=password, proxy_url=proxy_url
+        )
+    )
     security_code_major, security_code_minor = _monero_security_code(unique)
     unique_address = w.get_address(security_code_major, security_code_minor)
     return_address = str(unique_address)
     # Allow last 100 blocks. (200 minutes average)
     minimum_height = w.height() - 100
-    incoming_tx = w.incoming(local_address=unique_address,
-                             min_height=minimum_height,
-                             confirmed=True,
-                             unconfirmed=False)
+    incoming_tx = w.incoming(
+        local_address=unique_address,
+        min_height=minimum_height,
+        confirmed=True,
+        unconfirmed=False,
+    )
     for tx in incoming_tx:
         if tx.transaction.hash not in txids:
             for piconero in piconero_to_try:
@@ -165,34 +162,36 @@ def _monero_unspents(unique,
     return (return_address, False)
 
 
-def _unspents(address,
-              satoshis_to_try,
-              unique,
-              currency='btc',
-              txids=[],
-              monero_rpc=None,
-              min_confirmations=MIN_CONFIRMATIONS):
+def _unspents(
+    address,
+    satoshis_to_try,
+    unique,
+    currency="btc",
+    txids=[],
+    monero_rpc=None,
+    min_confirmations=MIN_CONFIRMATIONS,
+):
     """
     txids is an optional list of txids that you have already accepted
     payment for.
 
     Unspents for Bitcoin, Bitcoin Cash, or Bitcoin SV.
     """
-    if currency == 'btc':
+    if currency == "btc":
         our_bit = bit
-    elif currency == 'bch':
+    elif currency == "bch":
         our_bit = bitcash
-    elif currency == 'bsv':
+    elif currency == "bsv":
         our_bit = bitsv
     else:
-        raise ValueError('_unspents is only for btc, bch, and bsv.')
+        raise ValueError("_unspents is only for btc, bch, and bsv.")
 
     if isinstance(satoshis_to_try, int):
         satoshis_to_try = [satoshis_to_try]
     # bitsv has switched to get_unspents(). This is kind of hacky.
     # https://github.com/AustEcon/bitsv/issues/40
-    if 'get_unspents' in dir(our_bit.network.NetworkAPI):
-        unspents = our_bit.network.NetworkAPI('main').get_unspents(address)
+    if "get_unspents" in dir(our_bit.network.NetworkAPI):
+        unspents = our_bit.network.NetworkAPI("main").get_unspents(address)
     else:
         unspents = our_bit.network.NetworkAPI.get_unspent(address)
     for unspent in unspents:
@@ -214,9 +213,7 @@ def _unspents(address,
     return (False, now_satoshis)
 
 
-def _satoshi_security_code(unique,
-                           attempt=0,
-                           satoshi_security=1000):
+def _satoshi_security_code(unique, attempt=0, satoshi_security=1000):
     """
     Returns the "Satoshi security code" given the circumstances.
     We use MD5 because it's pretty fast. We strip off so many bits
@@ -232,7 +229,7 @@ def _satoshi_security_code(unique,
     # Make attempt a string so we can append it to unique, which is
     # a string.
     attempt = str(attempt)
-    hashable = bytes(unique + attempt, 'utf-8')
+    hashable = bytes(unique + attempt, "utf-8")
     # Get our base MD5 sum, in integer format.
     security_code = int(md5(hashable).hexdigest(), 16)
     # Modulo down to satoshi_security levels.
@@ -242,13 +239,17 @@ def _satoshi_security_code(unique,
     return security_code
 
 
-def payment(address,
-            satoshis_to_try,
-            unique,
-            currency='btc',
-            txids=[],
-            monero_rpc=None,
-            min_confirmations=MIN_CONFIRMATIONS):
+def payment(
+    address,
+    satoshis_to_try,
+    unique,
+    currency="btc",
+    txids=[],
+    monero_rpc=None,
+    min_confirmations=MIN_CONFIRMATIONS,
+    hit_floor=False,
+    price=None,
+):
     """
     Accepts a payment.
 
@@ -290,52 +291,61 @@ def payment(address,
     are transacting in that window, it's lower.
     """
     validate_currency(currency)
-    bitcoinacceptor_payment = namedtuple('bitcoinacceptor_payment',
-                                         ['satoshis',
-                                          'txid',
-                                          'uri'])
+    bitcoinacceptor_payment = namedtuple(
+        "bitcoinacceptor_payment",
+        ["satoshis", "txid", "uri", "hit_floor", "final_price", "final_cents"],
+    )
+    bitcoinacceptor_payment.hit_floor = hit_floor
 
-    if currency == 'xmr':
+    if currency == "xmr":
         if address is not None:
-            raise ValueError('address must be none when using Monero (XMR)')
+            raise ValueError("address must be none when using Monero (XMR)")
         if not isinstance(monero_rpc, dict):
-            msg = 'With currency set to xmr, monero_rpc must be a dict with '
-            msg += 'host, port, user, password'
+            msg = "With currency set to xmr, monero_rpc must be a dict with "
+            msg += "host, port, user, password"
             raise ValueError(msg)
-        address, txid = _monero_unspents(unique=unique,
-                                         piconero_to_try=satoshis_to_try,
-                                         txids=txids,
-                                         host=monero_rpc['host'],
-                                         port=monero_rpc['port'],
-                                         user=monero_rpc['user'],
-                                         password=monero_rpc['password'])
+        address, txid = _monero_unspents(
+            unique=unique,
+            piconero_to_try=satoshis_to_try,
+            txids=txids,
+            host=monero_rpc["host"],
+            port=monero_rpc["port"],
+            user=monero_rpc["user"],
+            password=monero_rpc["password"],
+        )
         satoshis = satoshis_to_try[0]
     else:
-        txid, satoshis = _unspents(address,
-                                   satoshis_to_try,
-                                   unique,
-                                   currency,
-                                   txids,
-                                   monero_rpc,
-                                   min_confirmations=min_confirmations)
+        txid, satoshis = _unspents(
+            address,
+            satoshis_to_try,
+            unique,
+            currency,
+            txids,
+            monero_rpc,
+            min_confirmations=min_confirmations,
+        )
 
     bitcoinacceptor_payment.txid = txid
     bitcoinacceptor_payment.satoshis = satoshis
-    bitcoinacceptor_payment.uri = utilities.payment_to_uri(address,
-                                                           currency,
-                                                           satoshis)
+    bitcoinacceptor_payment.uri = utilities.payment_to_uri(address, currency, satoshis)
+    if price is not None:
+        amount = float(bitcoinacceptor_payment.uri.split("=")[1]) * price
+        bitcoinacceptor_payment.final_price = f"${amount:.2f}"
+        bitcoinacceptor_payment.final_cents = int(amount * 100)
     return bitcoinacceptor_payment
 
 
-def fiat_payment(address,
-                 cents,
-                 unique,
-                 currency='btc',
-                 first_price=None,
-                 second_price=None,
-                 txids=[],
-                 monero_rpc=None,
-                 min_confirmations=MIN_CONFIRMATIONS):
+def fiat_payment(
+    address,
+    cents,
+    unique,
+    currency="btc",
+    first_price=None,
+    second_price=None,
+    txids=[],
+    monero_rpc=None,
+    min_confirmations=MIN_CONFIRMATIONS,
+):
     """
     Should have been named fiat_denominated_payment()
 
@@ -344,14 +354,14 @@ def fiat_payment(address,
     address should be None for Monero.
     """
     validate_currency(currency)
-    first_cents, second_cents = satoshis_per_cent(currency,
-                                                  first_price,
-                                                  second_price)
+    # Did we hit the price floor?
+    hit_floor = False
+    first_cents, second_cents = satoshis_per_cent(currency, first_price, second_price)
     first_satoshis = int(first_cents * cents)
     second_satoshis = int(second_cents * cents)
 
     # Only require 8 digits of precision.
-    if currency == 'xmr':
+    if currency == "xmr":
         first_satoshis = (first_satoshis // 10000) * 10000
         second_satoshis = (second_satoshis // 10000) * 10000
 
@@ -366,6 +376,7 @@ def fiat_payment(address,
     # No idea what the floor is for Monero.
     if first_satoshis < SATOSHI_FLOOR:
         first_satoshis = SATOSHI_FLOOR
+        hit_floor = True
     if second_satoshis < SATOSHI_FLOOR:
         second_satoshis = SATOSHI_FLOOR
 
@@ -374,10 +385,14 @@ def fiat_payment(address,
     else:
         satoshis_to_try = [first_satoshis, second_satoshis]
 
-    return payment(address,
-                   satoshis_to_try,
-                   unique,
-                   currency,
-                   txids,
-                   monero_rpc,
-                   min_confirmations)
+    return payment(
+        address,
+        satoshis_to_try,
+        unique,
+        currency,
+        txids,
+        monero_rpc,
+        min_confirmations=min_confirmations,
+        hit_floor=hit_floor,
+        price=first_price,
+    )

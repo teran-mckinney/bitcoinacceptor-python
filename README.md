@@ -6,7 +6,7 @@
 
 ## Testing
 
-* `nosetests -vx`
+* `./test.sh`
 
 ## Usage
 
