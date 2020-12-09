@@ -2,11 +2,11 @@
 
 from setuptools import setup
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 
 DOWNLOAD_URL = (
     "https://go-beyond.org/code/bitcoinacceptor-python/archives/"
-    "bitcoinacceptor-python-{VERSION}.tar.gz"
+    f"bitcoinacceptor-python-{VERSION}.tar.gz"
 )
 
 setup(
@@ -19,7 +19,7 @@ setup(
     keywords=["bitcoin", "bitcoincash", "bitcoinsv", "monero"],
     license="Unlicense",
     url="https://github.com/teran-mckinney/bitcoinacceptor-python/",
-    download_url=DOWNLOAD_URL.format(VERSION),
+    download_url=DOWNLOAD_URL,
     packages=["bitcoinacceptor"],
     install_requires=[
         "bit",
